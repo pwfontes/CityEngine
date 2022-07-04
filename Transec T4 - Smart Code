@@ -1,0 +1,119 @@
+/**
+ * File:    TransecMassWithColumn.cga
+ * Created: 24 May 2021 08:27:44 GMT
+ * Author:  PFontes
+ */
+
+version "2019.1"
+import streetScape:"rules/streetScape.cga"
+
+attr groundFloorHeight = 6
+attr floorHeight = 3.5
+attr buildingHeight = rand(10,40)
+attr StoreFrontSize = 5
+@Enum("Visible","Transparent")
+attr HiddeColonnade = "Visible"
+
+@Group("Setbacks", 0)
+@Description("G - Arcades")
+attr setbackFront = 0
+attr setbackRight = 0
+attr setbackLeft = 0
+attr setbackBack = rint(rand(3,7))
+@Group("Projections",1)
+@Description("G - Arcades") 
+attr arcadeProjection = 3.5
+
+@Group("Store", 1)
+attr storeSignageSize = 2
+	
+const dists = comp(fe) {front = setbackFront | 
+						right = setbackRight | 
+						left = setbackLeft |
+						back = setbackBack
+						}
+
+Lot -->
+	report("LotArea", geometry.area)
+	t(0,streetScape.curbHeight,0)
+	setback(dists) {all : Garden | remainder : Building}
+	
+
+Building -->
+		extrude( buildingHeight )
+		split(y){groundFloorHeight: FloorLayout|{~floorHeight: FloorLayout}*}
+
+Garden -->
+	color(0,1,0)
+		
+FloorLayout -->
+			case split.index == 0 :
+				split(z){  ~1 : RetailFacade | arcadeProjection : [Colonnade] [Gallery]}
+				report("Ground Floors Units",1) 
+				report("GFA.Area",geometry.area)
+			case split.index >= 1 && split.index <= 3:
+				color(0,0,1)
+				report("First Floors Units",1) 
+				report("GFA.1stFloor.Area",geometry.area)
+			else:
+				color(.5,1,1)
+				s('.8,'1,'.8)
+				center(xz)
+				report("Higher Floors Units",1) 
+				report("GFA.NthFloor.Area",geometry.area)
+
+RetailFacade -->
+	comp(f){front:	split(x)
+		{ 0.5 : Wall | { ~StoreFrontSize : StoreFront | .5 : Wall }* }
+			| side : Wall
+			| back : Wall
+			}
+			
+Wall -->
+	color(1,0,0)
+
+
+########################################
+# Store 
+########################################
+
+StoreFront -->
+	split(y){groundFloorHeight - storeSignageSize : Glass 
+			| storeSignageSize : StoreSignage }
+			
+Glass -->
+	offset(-0.1)
+	comp(f){inside:GlassMaterial |border: color(0,0,0) Frame.}
+
+GlassMaterial -->
+	color(0,0,0)
+	set(material.specular.r, 1) set(material.specular.g, 1) set(material.specular.b, 1)
+	set(material.reflectivity, 1)
+	set(material.shininess, 128)
+	
+StoreSignage -->
+	setupProjection(0, scope.xy, '1, '1)
+	texture("/ESRI.lib/assets/General/uvtest.png")
+	projectUV(0)
+	
+########################################
+# Colonnade
+########################################
+
+Gallery -->
+	comp(f){bottom : GalleryPavament}
+	
+GalleryPavament -->
+	color(0.5,0.5,0.5)
+
+Colonnade -->
+	t(0, 0, arcadeProjection-1)
+	set(material.opacity, 
+		case HiddeColonnade == "Visible" 	: 1
+		else 								: 0
+		)
+		
+	split(x) {{~4: Column}*|1:Column}
+	
+Column -->
+	primitiveCube() s(1, groundFloorHeight, 1)
