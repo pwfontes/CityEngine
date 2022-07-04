@@ -1,0 +1,145 @@
+/**
+ * File:    landuses.cga
+ * Created: 1 Feb 2022 12:42:27 GMT
+ * Author:  PFontes
+ */
+
+version "2019.1"
+import Plant_Distributor:"rules/Plants/Plant_Distributor.cga"
+
+@Group ("Lot configuration", 1)
+@Enum ("Vacant", "Built-up")
+attr lotConfig = "Built-up"
+
+@Group ("Lot Parameters", 2)
+@Order(1)
+attr setbackMin = 0
+@Order(2)
+attr setbackMax = 10
+@Order(3)
+@Enum ("Low", "Medium", "High")
+attr coverage = "Medium"
+
+@Group ("Building Shape", 3)
+@Order(0)
+@Enum ("Lot shape", "Inner rectangle", "Random")
+attr BuildingFitting = "Random"
+@Order(1)
+@Enum ("Yes", "No", "Random")
+attr splitOpion = "Random"
+@Order(2)
+@Enum ("No", "Yes")
+attr swapSplitAxis = "No"
+@Order(3)
+@Enum ("Random", "Square-Type", "L-Type", "U-Type", "O-Type")
+attr buildingType = "Random"
+@Order(4)
+@Handle(shape=Solid)
+@Range (min=3, max=14, restricted=false)
+attr buildingHeight = ceil(rand(3,14))
+
+@Group ("Greenary", 4)
+@Enum ("On", "Off")
+attr greenary = "Off"
+
+###### Variables ################
+
+setbackMaxProb =
+	70% : setbackMin
+	else : setbackMax
+
+###### Parcel Rules ##############
+
+@StartRule
+Parcel -->
+	case lotConfig == "Built-up" :
+	setbackPerEdge(rand(setbackMin,setbackMaxProb)){all:OpenSpace|remainder:SubParcelSplitX(splitOpion, swapSplitAxis)}
+	else : OpenSpace
+	
+RandomSplit = rand(1,3)	
+
+SubParcelSplitX(splitOpion, swapSplitAxis) -->
+	case splitOpion == "Yes" : 
+		case coverage == "Low" && swapSplitAxis == "No":
+			split(x){scope.sx/RandomSplit:SubParcelSplitZ|~1:OpenSpace|scope.sx/RandomSplit:SubParcelSplitZ|~1:OpenSpace}
+		case coverage == "Low" && swapSplitAxis == "Yes":
+			split(z){scope.sx/RandomSplit:SubParcelSplitZ|~1:OpenSpace|scope.sx/RandomSplit:SubParcelSplitZ|~1:OpenSpace}
+		case coverage == "Medium" :
+			split(x){scope.sx/RandomSplit:SubParcelSplitZ|~1:OpenSpace|scope.sx/RandomSplit:SubParcelSplitZ}
+		case coverage == "Medium" :
+			split(z){scope.sx/RandomSplit:SubParcelSplitZ|~1:OpenSpace|scope.sx/RandomSplit:SubParcelSplitZ}
+		else :
+			split(x){scope.sx/RandomSplit:SubParcelSplitZ|~1:SubParcelSplitZ}
+	case splitOpion == "Random" : 
+		50% : SubParcelSplitX("Yes",swapSplitAxis)
+		else : SubParcelSplitX("No",swapSplitAxis)
+	else : BuildingRectangle
+
+
+
+SubParcelSplitZ -->
+	case coverage == "Low" && swapSplitAxis == "No":
+		split(z){scope.sz/4:BuildingRectangle|~1:OpenSpace|scope.sz/4:OpenSpace|~1:OpenSpace}
+	case coverage == "Low" && swapSplitAxis == "Yes":
+		split(x){scope.sz/4:BuildingRectangle|~1:OpenSpace|scope.sz/4:OpenSpace|~1:OpenSpace}
+	case coverage == "Medium" && swapSplitAxis == "No":
+		split(z){scope.sz/3:BuildingRectangle|~1:OpenSpace|scope.sz/3:BuildingRectangle}
+	case coverage == "Medium" && swapSplitAxis == "Yes":
+		split(x){scope.sz/3:BuildingRectangle|~1:OpenSpace|scope.sz/3:BuildingRectangle}
+	case coverage == "High" && swapSplitAxis == "Yes":
+		split(x){scope.sz/3:BuildingRectangle|~1:OpenSpace|scope.sz/3:BuildingRectangle}
+	else :
+		split(z){scope.sz/RandomSplit:BuildingRectangle|~1:BuildingRectangle}
+
+BuildingRectangle -->
+	case BuildingFitting == "Inner rectangle" :
+		innerRectangle(scope){shape:BuildingSelector(buildingType)|remainder:OpenSpace}
+	case BuildingFitting == "Lot shape" :
+		BuildingSelector(buildingType)
+	else :
+		50% : innerRectangle(scope){shape:BuildingSelector(buildingType)|remainder:OpenSpace}
+		else : BuildingSelector(buildingType)
+
+##### Building Shape ##############
+
+BuildingSelector(type) -->
+	case type == "Square-Type" 	: BuildingSquare
+	case type == "L-Type"		: BuildingL
+	case type == "U-Type"		: BuildingU
+	case type == "O-Type"		: BuildingO
+	else : BuildingRandom
+	
+BuildingRandom -->
+ 	80% : Footprint
+ 	15% : shapeL(rand(10,15), rand(5,10)) { shape : Footprint | remainder: OpenSpace }
+ 	1% : shapeU(rand(5,10), rand(2,10), rand(5,10)) { shape : Footprint | remainder: OpenSpace }
+ 	1% : shapeO(rand(2,10), rand(5,10), rand(2,10), rand(5,10)) { shape : Footprint | remainder: OpenSpace}
+ 	else : OpenSpace
+
+BuildingSquare -->
+ 	Footprint
+ 	
+BuildingL -->
+ 	shapeL(rand(5,15), rand(2,10)) { shape : Footprint | remainder: OpenSpace }
+
+BuildingU -->
+ 	shapeU(rand(5,15), rand(2,10), rand(5,15)) { shape : Footprint | remainder: OpenSpace }
+
+BuildingO -->
+	shapeO(rand(2,10), rand(5,15), rand(2,10), rand(5,15)) { shape : Footprint | remainder: OpenSpace}
+
+##################################
+
+Footprint -->
+	extrude(rand(buildingHeight-2,buildingHeight+2))
+	comp(f){side: Wall | top: Roof}
+	
+Wall -->
+	color(0.75, 0.75, 0.75)
+	
+Roof -->
+	Roof.
+	
+OpenSpace -->
+	case greenary == "On" : Plant_Distributor.Generate
+	else : Green.
