@@ -1,0 +1,71 @@
+/**
+ * File:    plot_area.cga
+ * Created: 24 Mar 2022 15:19:51 GMT
+ * Author:  PFontes
+ */
+
+version "2019.1"
+
+@Enum("Residential Detached", 
+		"Residential Apartments", 
+		"Community Facilities",
+		"Commercial",
+		"Open Space")
+attr LandUse = "Residential Detached".  #Residential distric predominant landuse
+
+@Hidden
+attr floorHeight = 3   #Architects definiton
+
+Lot -->
+	Reports
+	Parcel
+
+Parcel -->
+	case LandUse == "Open Space" : color("#279680")
+	else : Building
+	
+LotInner -->
+	Reports
+	Building
+	
+Building -->
+	case LandUse == "Residential Detached" : 
+		color("#ffffcc")
+		offset(-3, inside)
+		extrude(2 * floorHeight)
+		split(y){floorHeight : Facade.}*
+	case LandUse == "Residential Apartments" : 
+		color("#ffffbb")
+		offset(-3, inside)
+		extrude(rand(3,8) * floorHeight)
+		split(y){floorHeight : Facade.} *
+	case LandUse == "Community Facilities" :
+		offset(-3, inside)
+		color("#2776bb")
+		extrude (rand(1,4) * floorHeight)
+		split(y){floorHeight : Facade.}*
+	case LandUse == "Commercial" :
+		offset(-3, inside)
+		color("#ed1f24")
+		extrude (rand(1,4) * floorHeight)
+		split(y){floorHeight : Facade.}*
+	case LandUse == "Open Space" :
+		color("#279680")  
+	else : 
+		X.
+		
+OpenSpace -->
+	color("#279680")
+	X.
+
+Reports -->
+	case LandUse == "Residential Detached" :
+		report("Plot Areas.Residential Detached", geometry.area)
+	case LandUse == "Residential Apartments" :
+		report("Plot Areas.Residential Apartments", geometry.area)
+	case LandUse == "CF & Commercial" :
+		report("Plot Areas.CF & Commercial", geometry.area)
+	case LandUse == "Open Space" :
+		report("Plot Areas.Open Space", geometry.area)  
+	else : 
+		X.
