@@ -1,0 +1,80 @@
+/**
+ * File:    Corimba_land_use.cga
+ * Created: 26 Aug 2021 09:43:09 GMT
+ * Author:  PFontes
+ */
+
+version "2019.1"
+
+#From GIS, Object attribute
+attr Floors = 0
+attr FstFloorH = 0
+attr mezFloorH = 0
+attr floorHeight = 3.5
+attr layer_2 = ""   
+
+############################
+# Functions
+
+# Check if building has distinct first floor
+const GFloorH =
+		case FstFloorH == 0 : floorHeight
+		else 				: FstFloorH
+
+# Check if building has mezanine
+const MfloorH =
+		case mezFloorH == 0 : floorHeight
+		else				: mezFloorH
+
+# If has distinct first floor and mezanine, build podium
+const hasBase =
+		case FstFloorH > 0 && mezFloorH >  0	: 2
+		case FstFloorH > 0 && mezFloorH == 0 	: 1
+		else 									: 0
+
+const mainBuldingTopHeight = (Floors - hasBase) * floorHeight
+
+const landUseColor =
+		case layer_2 == "OptP-U-H-MixedUse" : 				      "#f49db4"
+		case layer_2 == "OptP-U-H-Community Facilities" : 	"#70a7a6"
+		case layer_2 == "OptP-U-H-Hospitality" : 			      "#4bbe9a"
+		case layer_2 == "OptP-U-H-InfraStructure" : 		    "#bababb"
+		case layer_2 == "OptP-U-H-Mice" : 					        "#70a7a6"
+		case layer_2 == "OptP-U-H-Office" : 				        "#b986bc"
+		case layer_2 == "OptP-U-H-Resi-High" : 				      "#c2af6c"
+		case layer_2 == "OptP-U-H-Resi-Med" : 				      "#f4e49c"
+		case layer_2 == "OptP-U-H-Resi-Low" : 				      "#faf6de"
+		case layer_2 == "OptP-U-H-Resi-MixedUse" : 			    "#f49db4"
+		else :                                              "#000000"
+
+
+#############################
+@StartRule
+Footprint -->
+	Buildings
+	
+Buildings -->
+	case hasBase == 2 	: BuildingWithFullPodium
+	case hasBase == 1 	: BuildingWithPodium
+	else 				: BuildingRegular
+
+BuildingWithFullPodium -->
+	extrude(FstFloorH + mezFloorH + (Floors * floorHeight))
+	split(y){GFloorH:GroundFloor|MfloorH:MezanineFloor|mainBuldingTopHeight:MainBuildingFloor}
+
+BuildingWithPodium -->
+	extrude(FstFloorH + (Floors * floorHeight))
+	split(y){GFloorH:GroundFloor|mainBuldingTopHeight:MainBuildingFloor}
+	
+BuildingRegular -->
+	extrude(Floors * floorHeight)
+	MainBuildingFloor
+
+GroundFloor -->
+	color(landUseColor)
+	
+MezanineFloor -->
+	color(landUseColor)
+	
+MainBuildingFloor -->
+	color(landUseColor)
