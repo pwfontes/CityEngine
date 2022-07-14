@@ -1,0 +1,100 @@
+/**
+ * File:    ExistingBuildings.cga
+ * Created: 27 Apr 2022 13:30:05 GMT
+ * Author:  PFontes
+ */
+
+version "2019.1"
+
+@Group("Building")
+attr floors = rint(rand(3, 7))
+attr floorHeight = 4
+attr groundFloorHeight = 6
+
+@Hidden
+attr currentFloor = 0
+
+@Percent @Range(min=0, max=1, restricted=true)
+attr roofingAmount = 0.25 #probability of putting a TopFloor on
+
+
+@Percent @Range(min=0, max=1, restricted=true)
+attr balconyAmount = 0.05 #probability of putting a balcony on
+
+@Group("Theme")
+@Enum ("Facade", "Land Use", "Height")
+attr visualOption = "Facade"
+
+@Hidden
+attr parapet = false
+
+@StartRule
+Building -->
+	case currentFloor == 0 : GroundFloor
+	case currentFloor < floors : Floors
+	else: RoofTop
+
+GroundFloor -->
+	set(currentFloor, currentFloor + 1)
+	extrude(groundFloorHeight)
+	comp(f){side: GroundFloorFacade | top: Floors}
+	
+Floors -->
+	set(currentFloor, currentFloor + 1)
+	extrude(floorHeight)
+	comp(f){side: Facade | top: Building}
+
+RoofTop -->
+	offset(-1)
+	comp(f){inside: TopFloor | border: Parapet}
+	
+TopFloor -->
+	case p(roofingAmount) :
+		case scope.sx < scope.sy : 	split(y){scope.sy / 4 : [innerRectangle(scope){shape:Rooffing | remainder: VizScheme}] | ~1: VizScheme}
+		else : 						split(x){scope.sx / 4 : [innerRectangle(scope){shape:Rooffing | remainder: VizScheme}] | ~1: VizScheme}
+	else : VizScheme
+		
+Rooffing -->
+	extrude(floorHeight * 0.9)
+	set(currentFloor, -1)
+	comp(f){side: VizScheme | top: offset(-0.5) 
+		[comp(f){border: extrude(floorHeight / 10) VizScheme| inside: VizScheme}]}
+
+Parapet -->
+	set(parapet, true)
+	comp(f){border: extrude(floorHeight / 3) VizScheme| inside: VizScheme}
+	
+
+GroundFloorFacade -->
+	75% :								# % of facade with doors
+		split(x){{~1: White. | 3: 
+			[split(y){5: 
+				[extrude(-1)
+				comp(f){top: color(0.8,0.8,0.8) Glass.
+				White. | side: White.} reverseNormals] 
+			| ~1: DoorOverHead.}]
+		}* | ~1: White.}
+	else : White.
+
+Facade -->
+	case parapet == true : VizScheme
+	case scope.sx < scope.sy : VizScheme
+	else :
+		case p(balconyAmount) : split(x){~1: Facade. | floorHeight / 1.5: Balcony | ~1: Facade.}
+		else: White. #	split(x){~1: White. | 2: 
+					#[extrude(-0.1)
+					#comp(f){top: White. | side: White.}] 
+				#| ~1: White.}*
+		
+Balcony -->
+	extrude(1.5)
+	color(0.8, 0.6, 0.5)
+	
+
+VizScheme -->
+	case visualOption == "Land Use" : color("#828282")
+	case visualOption == "Height" 	: color("#7f1f00")
+	case visualOption == "Facade" && currentFloor == -1 : color(0.8, 0.6, 0.5)
+	else : Facade. #implement this
+	
+	
