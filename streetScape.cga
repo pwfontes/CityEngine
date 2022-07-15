@@ -1,0 +1,43 @@
+/**
+ * File:    streetScape.cga
+ * Created: 21 Jun 2021 14:19:17 GMT
+ * Author:  PFontes
+ */
+
+version "2019.1"
+
+attr curbHeight = .15
+
+@StartRule
+Sidewalk -->
+	split(v, unitSpace, 0){ .15 : Curb | 1 : streetFurnitureLane |'1 : Pavement }
+	
+Pavement -->
+	extrude(curbHeight)
+	color(.5,.5,.5)
+
+streetFurnitureLane -->
+	split(u, unitSpace, 0){ ~5 : Pavement | ~5 : [Garden][Planting] }*
+
+Garden -->
+	extrude(.1)
+	color(0,1,0)	
+	
+Planting -->
+	s(1,1,1) 
+	t(0,.1,0) 
+	center(xz)
+	primitiveCube()
+	
+		
+Curb -->
+	extrude(curbHeight)
+	color(.8,.8,.8)
+
+@StartRule
+Street -->
+	split(u, unitSpace, 0) { ~10 : color("cccccc") X. | ~3 : color("#ff0000") X.  |  ~10 : color("cccccc") X.}*
+
+@StartRule
+Crossing -->
+	color("cccccc") X.
