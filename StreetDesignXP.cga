@@ -1,0 +1,343 @@
+version "2023.1"
+
+@Hidden
+attr baseLength = 600
+@Hidden
+attr baseWitdh = 300
+@Hidden
+attr middleBlockLength = baseLength * 0.7
+
+@Group("Street Parameters",1)
+@Distance @Range(min=5, max=60) @DisplayName("Street Width") @Order(1)
+attr streetWidth = 10
+@Distance @Range(min=0.05, max=0.30) @DisplayName("Curb Width") @Order(2)
+attr curbWidth = 0.15
+@Distance @Range(min=0.05, max=0.30) @DisplayName("Curb Height") @Order(3)
+attr curbHeight = 0.15
+@Distance @Range(min=0.50, max=10) @DisplayName("Total Pavement Width") @Order(4)
+attr pavementWidth = 2
+@Distance @DisplayName("Traffic Lane Width") @Order(5)
+attr trafficLaneWidth = 3.65
+@Hidden @Distance @DisplayName("Lane Line Width") @Order(6)
+attr laneLineWidth = 0.12
+@Enum("Yes", "No") @DisplayName("Median Presence") @Order(7)
+attr medianSelector = "No"
+@Distance @Range(min=0.50,max=10) @DisplayName("Median Width") @Order(8)
+attr medianWidth = 2
+@Distance @DisplayName("Zebra Crossing Width") @Order(9)
+attr zebraCrossingWidth = 10
+
+@Group("Plot Group Parameter", 2)
+@Distance @Range(min=5, max=60) @DisplayName("Plot Width") @Order(1)
+attr plotWidth = 25
+@Distance @Range(min=10, max=60) @DisplayName("Plot Depth") @Order(2)
+attr plotDepth = 25
+@Distance @Range(min=0, max=10) @DisplayName("Max Setback (Random)") @Order(3)
+attr maxSetback = 5
+
+@Group("Building Parameters", 3)
+@Distance @Range(min=10, max=60) @DisplayName("Max Building Height") @Order(1)
+attr maxBuildingHeight = 60
+@Distance @Range(min=5, max=55) @DisplayName("Min Building Height") @Order(2)
+attr minBuildingHeight = 5
+@Distance @DisplayName("Ground Floor Height") @Order(3)
+attr groundFloorHeight = 6
+@Distance @DisplayName("General Floor Height") @Order(4)
+attr floorHeight = 4
+@Distance @DisplayName("Facade Module Width") @Order(5)
+attr groundFacadeTileWidth = 4
+@Percent @DisplayName("Facade Modules with Openings (Random)") @Order(6)
+attr facadeOpeningsAmount = 0.75
+@Distance @DisplayName("Slab Height") @Order(7)
+attr slabHeigth = 0.1
+
+@Group("Pavement Parameters", 4)
+@Distance @DisplayName("Walk Lane Width") @Order(1)
+attr pavementWalkWidth = 2
+@Distance @DisplayName("Furniture/Landscape Lane Width") @Order(2)
+attr pavementFurnitureLandscapeWidth = 1.5
+@Distance @DisplayName("Furniture/Landscape Planter Segment Length") @Order(3)
+attr pavementFurnitureLandscapePlanterLenght = 10
+@Distance @DisplayName("Furniture/Landscape Inter-Segment Length") @Order(4)
+attr pavementFurnitureLandscapeLenght = 10
+@Distance @Distance @DisplayName("Furniture/Landscape Planter Height") @Order(5)
+attr pavementFurnitureLandscapePlanterHeight = 1
+@Distance @DisplayName("Landscape Lane Width") @Order(6)
+attr pavementLandscapeWidth = 1
+@Distance @DisplayName("Landscape Planter Segment Length") @Order(7)
+attr pavementLandscapePlanterLenght = 5
+@Distance @DisplayName("Landscape Inter-Segment Length") @Order(8)
+attr pavementLandscapeLenght = 5
+@Percent @DisplayName("Landscape Planters with Trees") @Order(9)
+attr treeAmount = 1
+@Percent @DisplayName("Tree Size Adjustment") @Order(10)
+attr treeSizeSelector = 1
+@Distance @DisplayName("Micromobility Lane Width") @Order(11)
+attr pavementMicroMobilityWidth = 2.5
+
+
+
+
+@StartRule
+Base -->
+	split(x){ baseLength * 0.15: LeftBlock
+			| baseLength * 0.70: MiddleSection 
+			| baseLength * 0.15: RightBlock}
+	
+MiddleSection -->
+	split(x){ streetWidth: CarriagewayLeftBlock
+			| middleBlockLength - (2 * streetWidth) : MiddleBlock 
+			| streetWidth: CarriagewayRightBlock}
+	
+MiddleBlock -->
+	split(z){(baseWitdh / 2) - (streetWidth / 2): MiddleBlockLeft 
+			| streetWidth: CarriagewaySegmentation
+			| (baseWitdh / 2) - (streetWidth / 2): MiddleBlockRight}
+			
+MiddleBlockLeft -->
+	split(z){ ~1: PlotBackSpace
+			| plotDepth: MiddleBlockLeftPlots
+			| pavementWidth: Pavement(0)
+			| curbWidth: Curb}
+			
+MiddleBlockRight -->
+	split(z){ curbWidth: Curb
+			| pavementWidth: Pavement(180)
+			| plotDepth: MiddleBlockLeftPlots
+			| ~1: PlotBackSpace}
+			
+LeftBlock -->
+	split(x){ ~1: PlotBackSpace
+			| plotDepth: LeftBlockPlots
+			| pavementWidth: Pavement(90)
+			| curbWidth: Curb}
+			
+RightBlock -->
+	split(x){ curbWidth: Curb
+			| pavementWidth: Pavement(-90)
+			| plotDepth: RightBlockPlots
+			| ~1: PlotBackSpace}
+			
+Curb -->
+	color(0.85,0.85,0.85)
+	extrude(curbHeight)
+	
+Pavement(rotateScope_y) -->
+	rotateScope(0,rotateScope_y,0)
+	split(z){ pavementWalkWidth: PavementWalk 
+			| pavementFurnitureLandscapeWidth: PavementFurnitureLandscape 
+			| pavementMicroMobilityWidth: PavementMicroMobility 
+			|~pavementLandscapeWidth: PavementLandscape}
+
+PavementWalk -->
+	color(0.75,0.75,0.75)
+	extrude(curbHeight)
+	
+PavementFurnitureLandscape -->
+	split(x){~1: split(x){ pavementFurnitureLandscapeLenght: PavementWalk | pavementFurnitureLandscapePlanterLenght: FurnitureLandscape}*
+			| zebraCrossingWidth: PavementWalk
+			|~1: split(x){ pavementFurnitureLandscapeLenght: PavementWalk | pavementFurnitureLandscapePlanterLenght: FurnitureLandscape}*}
+	
+FurnitureLandscape -->
+	extrude(pavementFurnitureLandscapePlanterHeight)
+	comp(f){ vertical: PlanterTexture. 
+		   | top: offset(-0.15) 
+		   		comp(f){ inside: extrude(-0.10) 
+		   					     comp(f){ vertical: reverseNormals() PlanterTexture. 
+		   						    	| top: reverseNormals() alignScopeToAxes() Trees Grass} 
+		   		       | border: PlanterTexture. }}
+	
+PavementMicroMobility -->
+	split(z){ curbHeight: Curb
+			|~1: color(0.63,0.88,0.97) extrude(curbHeight * 0.75) PavementMicroMobilityTexture.
+			| curbHeight: Curb}
+	
+PavementLandscape -->
+	split(x){~1: split(x){ pavementLandscapeLenght: PavementWalk | pavementLandscapePlanterLenght: Landscape}*
+			| zebraCrossingWidth: PavementWalk
+			|~1: split(x){ pavementLandscapeLenght: PavementWalk | pavementLandscapePlanterLenght: Landscape}*}
+	
+Landscape -->
+	extrude(curbHeight * 0.85)
+	Grass
+
+CarriagewayLeftBlock -->
+	rotateScope(0,90,0)
+	split(x){(baseWitdh / 2) - (streetWidth / 2): CarriagewaySegmentation 
+			|~1: Tarmac 
+			| (baseWitdh / 2) - (streetWidth / 2): CarriagewaySegmentation }
+	
+CarriagewayRightBlock -->
+	rotateScope(0,90,0)
+	split(x){(baseWitdh / 2) - (streetWidth / 2): CarriagewaySegmentation 
+			|~1: Tarmac 
+			|(baseWitdh / 2) - (streetWidth / 2): CarriagewaySegmentation }
+
+CarriagewaySegmentation -->
+	split(x){~1: CarriagewayMedianSelector | 10: CarriagewayZebraCrossing | ~1: CarriagewayMedianSelector }
+
+CarriagewayMedianSelector -->
+	case medianSelector == "Yes":
+		split(z){~1: Carriageway | medianWidth: Median |~1: Carriageway}
+	else: 
+		Carriageway
+
+Carriageway -->
+	case streetWidth - medianWidth >= 2 * trafficLaneWidth: #at least two traffic lanes will be displayed 
+		t(0,0.01,0) #raising 1cm to avoid coplane glitches in UE5
+		split(z){{~trafficLaneWidth: Tarmac | laneLineWidth: LaneLine}* | trafficLaneWidth: Tarmac}
+	else:	#sinlge traffic lane fit
+		t(0,0.01,0) #raising 1cm to avoid coplane glitches in UE5
+		Tarmac
+
+CarriagewayZebraCrossing -->
+	t(0,0.01,0) #raising 1cm to avoid coplane glitches in UE5
+	split(x){ 1: Tarmac |~1: ZebraLines | 1: Tarmac}
+	
+ZebraLines -->
+	split(z){{ 0.50: Tarmac | 0.50: ZebraLineTexture.}* | 0.50: Tarmac}
+
+Median -->
+	offset(-curbWidth)
+	comp(f){border: Curb | inside: Landscape}
+
+LeftBlockPlots -->
+	split(z){~plotWidth: LeftRightBlockPlot}*
+	
+RightBlockPlots -->
+	split(z){~plotWidth: LeftRightBlockPlot}*
+	
+MiddleBlockLeftPlots -->
+	split(x){ curbWidth: Curb
+			| pavementWidth: Pavement(-90)
+			|~1: split(x){~plotWidth: MiddleBlockLeftRightPlot}*
+			| pavementWidth: Pavement(90)
+			| curbWidth: Curb}
+
+MiddleBlockRightPlots -->
+	split(x){ curbWidth: Curb
+			| pavementWidth: Pavement(90)
+			|~1: split(x){~plotWidth: MiddleBlockLeftRightPlot}*
+			| pavementWidth: Pavement(90)
+			| curbWidth: Curb}
+
+LeftRightBlockPlot -->
+	t(0,curbHeight,0)
+	setback(rint(rand(maxSetback))){right: Garden | left: Garden| remainder: Building}
+
+MiddleBlockLeftRightPlot -->
+	t(0,curbHeight,0)
+	setback(rint(rand(maxSetback))){front: Garden | back: Garden| remainder: Building}
+	
+PlotBackSpace -->
+	t(0,0.01,0)
+	Garden
+	
+Building -->
+	label("building")
+	extrude(rint(rand(minBuildingHeight,maxBuildingHeight)))
+	comp(f){top: Roof | side: split(y){ groundFloorHeight: GroundFacade |{ slabHeigth: SlabTexture |~floorHeight: Facade}*}}
+	
+GroundFacade -->
+	comp(f){ side: split(x){~groundFacadeTileWidth: GroundFloorTile}*}
+	
+Facade -->
+	case scope.sy > floorHeight * 0.70: 
+		comp(f){ side: split(x){~groundFacadeTileWidth: UpperFloorTile}*}
+	else: 
+		PlasterTexture
+		
+Roof -->
+	offset(-0.20)
+	comp(f){inside: RoofType | border: RoofParapet}
+	
+RoofParapet -->
+	extrude(1)
+	PlasterTexture
+	
+RoofType -->
+	50%: roofHip(15) RoofHipTexture
+	else: RoofFlatTexture
+	
+GroundFloorTile -->
+	case touches(all, "building"): PlasterTexture
+	else:
+		case p( facadeOpeningsAmount ):
+			split(x){~scope.sx * 0.2: PlasterTexture
+					|~scope.sx * 0.6: split(y) {~scope.sy * 0.8: GroundFloorDoor | ~scope.sy * 0.2: PlasterTexture}
+					|~scope.sx * 0.2: PlasterTexture}
+		else: PlasterTexture
+	
+GroundFloorDoor -->
+	extrude(-0.15)
+	reverseNormals()
+	comp(f){bottom: Glass | side: color(0.80,0.80,0.80) PlasterTexture}
+	
+UpperFloorTile -->
+	case touches(all, "building"): PlasterTexture
+	else:
+		case p( facadeOpeningsAmount ):
+			split(x){~scope.sx * 0.2: PlasterTexture
+					|~scope.sx * 0.6: split(y) {~scope.sy * 0.2: PlasterTexture |~scope.sy * 0.6: UpperFloorWindow | ~scope.sy * 0.2: PlasterTexture}
+					|~scope.sx * 0.2: PlasterTexture}
+		case p( facadeOpeningsAmount ):
+			split(x){~scope.sx * 0.5: PlasterTexture 
+					|~scope.sx * 0.3: split(y) {~scope.sy * 0.2: PlasterTexture |~scope.sy * 0.6: UpperFloorWindow | ~scope.sy * 0.2: PlasterTexture}
+					|~scope.sx * 0.2: PlasterTexture}
+		else: PlasterTexture
+	
+UpperFloorWindow -->
+	extrude(-0.15)
+	reverseNormals()
+	comp(f){bottom: Glass | side: color(0.80,0.80,0.80) PlasterTexture}
+	
+Garden -->
+	color(0.85,1.00,0.85) 
+	GardenTexture.
+	
+SmallPlantsScatter -->
+	scatter(surface, 50, uniform){SmallPlantsSelector}
+	
+SmallPlantsSelector -->
+	95%: i("/ESRI.lib/assets/Webstyles/Vegetation/LowPoly/ConvallariaMajalis.glb", yUp, keepSizeAlignPosition)
+	else: i("/ESRI.lib/assets/Webstyles/Vegetation/LowPoly/RosaGrandiflora.glb", yUp, keepSizeAlignPosition)
+	
+Tarmac -->
+	color(0.25,0.25,0.25)
+	TarmacTexture.
+	
+LaneLine -->
+	split(x){ 1.5: color(0.90,0.90,0.90) LaneLineTexture. | ~3: Tarmac}*
+	   				
+Trees -->
+	case p(treeAmount):
+		i("/ESRI.lib/assets/Webstyles/Vegetation/LowPoly/UmbellulariaCalifornica.glb", yUp, keepSizeAlignPosition)
+		s(scope.sx * rand(0.75,1.25) * treeSizeSelector, scope.sx * rand(0.75,1.25) * treeSizeSelector, scope.sx * rand(0.75,1.25) * treeSizeSelector)
+		r(0,rand(0,180),0)
+		center(xz)
+	else:
+		NIL
+
+PlasterTexture -->
+		color(0.75,0.75,0.70)
+
+Grass -->
+	comp(f){top: SmallPlantsScatter	color(0.50,0.75,0.50) GrassTexture.}
+	
+Glass -->
+color(0.1,0.1,0.1)
+	set(material.specular.r, 0.5) set(material.specular.g, 0.5) set(material.specular.b, 0.5)
+	set(material.reflectivity, 0.8)
+	set(material.opacity, 1)
+	
+SlabTexture -->
+	color(0.80,0.80,0.80)
+	extrude(0.02)
+	
+RoofFlatTexture -->
+	color(0.80,0.80,0.80)
+	Roof.
+	
+RoofHipTexture -->
+	color(0.30,0.20,0.20)
+	Roof.
